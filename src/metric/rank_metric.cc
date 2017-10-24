@@ -171,12 +171,12 @@ struct EvalRankList : public Metric {
     #pragma omp parallel reduction(+:sum_metric)
     {
       // each thread takes a local rec
-      std::vector< std::pair<bst_float, unsigned> > rec;
+      std::vector< std::pair<bst_float, bst_float> > rec;
       #pragma omp for schedule(static)
       for (bst_omp_uint k = 0; k < ngroup; ++k) {
         rec.clear();
         for (unsigned j = gptr[k]; j < gptr[k + 1]; ++j) {
-          rec.push_back(std::make_pair(preds[j], static_cast<int>(info.labels[j])));
+          rec.push_back(std::make_pair(preds[j], static_cast<bst_float>(info.labels[j])));
         }
         sum_metric += this->EvalMetric(rec);
       }
@@ -216,7 +216,7 @@ struct EvalRankList : public Metric {
     }
   }
   /*! \return evaluation metric, given the pair_sort record, (pred,label) */
-  virtual bst_float EvalMetric(std::vector<std::pair<bst_float, unsigned> > &pair_sort) const = 0; // NOLINT(*)
+  virtual bst_float EvalMetric(std::vector<std::pair<bst_float,bst_float> > &pair_sort) const = 0; // NOLINT(*)
 
  protected:
   unsigned topn_;
@@ -230,7 +230,7 @@ struct EvalPrecision : public EvalRankList{
   explicit EvalPrecision(const char *name) : EvalRankList("pre", name) {}
 
  protected:
-  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, unsigned> > &rec) const {
+  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, bst_float> > &rec) const {
     // calculate Precision
     std::sort(rec.begin(), rec.end(), common::CmpFirst);
     unsigned nhit = 0;
@@ -247,17 +247,17 @@ struct EvalNDCG : public EvalRankList{
   explicit EvalNDCG(const char *name) : EvalRankList("ndcg", name) {}
 
  protected:
-  inline bst_float CalcDCG(const std::vector<std::pair<bst_float, unsigned> > &rec) const {
+  inline bst_float CalcDCG(const std::vector<std::pair<bst_float, bst_float> > &rec) const {
     double sumdcg = 0.0;
     for (size_t i = 0; i < rec.size() && i < this->topn_; ++i) {
-      const unsigned rel = rec[i].second;
+      const bst_float rel = rec[i].second;
       if (rel != 0) {
-        sumdcg += ((1 << rel) - 1) / std::log2(i + 2.0);
+        sumdcg += (std::pow(2,rel) - 1) / std::log2(i + 2.0);
       }
     }
     return sumdcg;
   }
-  virtual bst_float EvalMetric(std::vector<std::pair<bst_float, unsigned> > &rec) const { // NOLINT(*)
+  virtual bst_float EvalMetric(std::vector<std::pair<bst_float,bst_float> > &rec) const { // NOLINT(*)
     XGBOOST_PARALLEL_STABLE_SORT(rec.begin(), rec.end(), common::CmpFirst);
     bst_float dcg = this->CalcDCG(rec);
     XGBOOST_PARALLEL_STABLE_SORT(rec.begin(), rec.end(), common::CmpSecond);
@@ -279,7 +279,7 @@ struct EvalMAP : public EvalRankList {
   explicit EvalMAP(const char *name) : EvalRankList("map", name) {}
 
  protected:
-  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, unsigned> > &rec) const {
+  virtual bst_float EvalMetric(std::vector< std::pair<bst_float, bst_float> > &rec) const {
     std::sort(rec.begin(), rec.end(), common::CmpFirst);
     unsigned nhits = 0;
     double sumap = 0.0;

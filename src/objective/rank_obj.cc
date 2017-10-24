@@ -58,7 +58,7 @@ class LambdaRankObj : public ObjFunction {
 
       std::vector<LambdaPair> pairs;
       std::vector<ListEntry>  lst;
-      std::vector< std::pair<bst_float, unsigned> > rec;
+      std::vector< std::pair<bst_float, bst_float> > rec;
       #pragma omp for schedule(static)
       for (bst_omp_uint k = 0; k < ngroup; ++k) {
         lst.clear(); pairs.clear();
@@ -211,9 +211,9 @@ class LambdaRankObjNDCG : public LambdaRankObj {
   inline static bst_float CalcDCG(const std::vector<bst_float> &labels) {
     double sumdcg = 0.0;
     for (size_t i = 0; i < labels.size(); ++i) {
-      const unsigned rel = static_cast<unsigned>(labels[i]);
+      const double rel = static_cast<double>(labels[i]);
       if (rel != 0) {
-        sumdcg += ((1 << rel) - 1) / std::log2(static_cast<bst_float>(i + 2));
+        sumdcg += (std::pow(2,rel) - 1) / std::log2(static_cast<bst_float>(i + 2));
       }
     }
     return static_cast<bst_float>(sumdcg);
